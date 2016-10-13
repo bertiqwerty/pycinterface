@@ -10,7 +10,7 @@
 #include <iostream>
 
 
-
+// Functions are made available in Python with the DLL_EXPORT macro.
 DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, Imterface<float32> *im_out)
 {
 
