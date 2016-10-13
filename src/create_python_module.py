@@ -8,7 +8,7 @@
 
 import nltk
 import re
-
+import sys
 
 def parse_c_interface(c_interface_file):
     """
@@ -76,4 +76,4 @@ def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.
 
 
 if __name__ == "__main__":
-    generate_python_wrapper(["pycinterface.cpp"], ["."],  ["pycinterface"])
+    generate_python_wrapper(["pycinterface.cpp"], [".."],  ["pycinterface"])
