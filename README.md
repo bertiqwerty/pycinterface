@@ -16,7 +16,7 @@ A function exported from your library via
 ```
 DLL_EXPORT void dummy_f(Imterface<float>* im)
 {
-    // manipulate I'm somehow
+    // manipulate im somehow
 }
 ```
 can be called from Python as follows.
