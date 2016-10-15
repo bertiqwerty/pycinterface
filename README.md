@@ -12,8 +12,11 @@ Note: Currently, returning values is not supported. You have to pass output buff
 
 ## Example
 
-A function exported from your library via
+A function ```dummy_f``` exported from your library via
 ```
+#include "ImageTypes.h"
+#include "OsDetection.h"
+
 DLL_EXPORT void dummy_f(Imterface<float>* im)
 {
     // manipulate im somehow
