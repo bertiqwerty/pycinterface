@@ -76,4 +76,5 @@ def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.
 
 
 if __name__ == "__main__":
-    generate_python_wrapper(["pycinterface.cpp"], [".."],  ["pycinterface"])
+    # 1: c-file to be parsed, 2: base folder to look for library, 3: library name
+    generate_python_wrapper([sys.argv[1]], [sys.argv[2]],  [sys.argv[3]])
