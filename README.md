@@ -1,7 +1,7 @@
-# pycinterface
+# Pycinterface
 Pycinterface is a lightweight interface between Python and C/C++ with a focus on images as numpy arrays based on ctypes.
 
-## introduction
+## Introduction
 
 To compile the test example,
 create a build folder, e.g., in ```pycinterface/build```. Execute ```cmake ../src``` from within ```pycinterface/build```. Then, you can compile the code, e.g., with ```make``` under Linux. Go to ```pycinterface/src``` and execute ```python test_pycinterface.py``` to see if everything works.
