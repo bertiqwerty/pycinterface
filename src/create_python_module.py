@@ -20,7 +20,7 @@ def parse_c_interface(c_interface_file):
         content = f.read()
 
     content = re.sub("Imterface<[_0-9a-zA-Z]+>", "", content)
-
+    content = "\n".join([c.split("//")[0] for c in content.split("\n")])
     content = content.replace("uint8", "")
     content = content.replace("int", "")
     content = content.replace("float32", "")
@@ -76,4 +76,4 @@ def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.
 
 
 if __name__ == "__main__":
-    generate_python_wrapper(["pycinterface.cpp"], ["."],  ["pycinterface"])
+    generate_python_wrapper(["pycinterface.cpp"], [".."],  ["pycinterface"])
