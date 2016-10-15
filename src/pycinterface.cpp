@@ -10,12 +10,12 @@
 #include <iostream>
 
 
-
+// Functions are made available in Python with the DLL_EXPORT macro.
 DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, Imterface<float32> *im_out)
 {
 
     // You probably don't want to use the Imterface instance directly but create an image class that checks
-    // the type in its constructor and, allocate memory without using 'new', and has convenient access operators.
+    // the type in its constructor, allocates memory without using 'new', and has convenient access operators.
     if (typeCheck(*im_in1) && typeCheck(*im_in2) && typeCheck(*im_out))
     {
         for (int y = 0; y < im_in1->height; y++)

@@ -20,7 +20,7 @@ def parse_c_interface(c_interface_file):
         content = f.read()
 
     content = re.sub("Imterface<[_0-9a-zA-Z]+>", "", content)
-
+    content = "\n".join([c.split("//")[0] for c in content.split("\n")])
     content = content.replace("uint8", "")
     content = content.replace("int", "")
     content = content.replace("float32", "")
