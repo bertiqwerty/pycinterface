@@ -54,7 +54,7 @@ DLL_EXPORT void threshold_u8(Imterface<uint8> *im_in, Imterface<uint8> *im_out, 
     }
 }
 
-DLL_EXPORT float32 imMax_f(Imterface<float32> *im_in)
+DLL_EXPORT float32 im_max_f(Imterface<float32> *im_in)
 {
     float32 maxVal = im_in->data[0];
     if (typeCheck(*im_in))

@@ -10,6 +10,18 @@ import nltk
 import re
 import sys
 
+# currently supported return values have a value different from None
+_interfacing_types = {
+    "Imterface": None,
+    "uint8": "ctypes.c_uint8",
+    "int": "ctypes.c_int",
+    "float32": "ctypes.c_float",
+    "void": None,
+    "double": "ctypes.c_double",
+    "float": "ctypes.c_float"
+}
+
+
 def parse_c_interface(c_interface_file):
     """
     @brief Parses a c-interface file and generates a dictionary of function names to parameter lists.
@@ -19,13 +31,10 @@ def parse_c_interface(c_interface_file):
     with open(c_interface_file, "r") as f:
         content = f.read()
 
-    content = re.sub("Imterface<[_0-9a-zA-Z]+>", "", content)
+    content = re.sub("<[_0-9a-zA-Z]+>", "", content)
     content = re.sub("/\*.*?\*/", "", content, flags=re.DOTALL)
     content = "\n".join([c.split("//")[0] for c in content.split("\n")])
-    content = content.replace("uint8", "")
-    content = content.replace("int", "")
-    content = content.replace("float32", "")
-    content = content.replace("void", "")
+
     content = content.replace("*", "")
     content = content.replace("lambda", "lambda_param")
     try:
@@ -43,9 +52,10 @@ def parse_c_interface(c_interface_file):
                     final_index = i + j
                     break
                 j += 1
-            params = [p for p in tokens[i+3:final_index:2]]
-            function_name = tokens[i + 1]
-            dc_functions[function_name] = params
+            params = [p for p in tokens[i+5:final_index:3]]
+            restype = tokens[i + 1]
+            function_name = tokens[i + 2]
+            dc_functions[function_name] = {"restype": restype, "params": params}
     return dc_functions
 
 
@@ -54,12 +64,15 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     @brief Generates native code wrapping strings in Python
     """
     dc_functions = parse_c_interface(in_file)
-
-    functions_str = lib_name + "_native_lib = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n"
+    lib_wrapper = "_"+lib_name + "_native_lib"
+    functions_str = lib_wrapper + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
     for name in dc_functions:
-        functions_str += "def " + name + "(" + ", ".join(dc_functions[name]) + "):\n"
-        functions_str += "    return " + lib_name + "_native_lib." + name \
-                         + "(" + ", ".join(dc_functions[name]) + ")\n"
+        functions_str += "def " + name + "(" + ", ".join(dc_functions[name]["params"]) + "):\n"
+        restype_str = _interfacing_types[dc_functions[name]["restype"]]
+        if restype_str is not None:
+            functions_str += "    " + lib_wrapper + "." + name + ".restype = " + restype_str + "\n"
+        functions_str += "    return " + lib_wrapper + "." + name \
+                         + "(" + ", ".join(dc_functions[name]["params"]) + ")\n\n\n"
     return functions_str
 
 
@@ -68,10 +81,11 @@ def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.
     @brief Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
     """
-    wrapper_str = "from native_library_wrapper import NativeLibraryWrapper\n\n"
+    wrapper_str = "import ctypes\n"
+    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
 
-    for cppfile, base_folder, lib_name in zip(cppfiles, base_folders, lib_names):
-        wrapper_str += cpp_file_to_py_file_content(cppfile, base_folder, lib_name) + "\n"
+    for cpp_file, base_folder, lib_name in zip(cppfiles, base_folders, lib_names):
+        wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"
     with open(out_file, "w") as f:
         f.write(wrapper_str)
 

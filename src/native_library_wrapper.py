@@ -25,6 +25,8 @@ def in_debug_mode():
 _np_dtype_2_ctype_p = {
     np.dtype(np.float32): ctypes.POINTER(ctypes.c_float),
     np.dtype(np.uint8): ctypes.POINTER(ctypes.c_uint8),
+    np.dtype(np.float64): ctypes.POINTER(ctypes.c_double),
+    np.dtype(np.int): ctypes.POINTER(ctypes.c_int),
 }
 
 
@@ -32,6 +34,8 @@ _np_dtype_2_ctype_p = {
 _np_dtype_2_type_id = {
     np.dtype(np.float32): 0,
     np.dtype(np.uint8): 1,
+    np.dtype(np.float64): 2,
+    np.dtype(np.int): 3,
 }
 
 # To not recreate already created types, they are stored in this dict and only created if not already existing.
