@@ -42,3 +42,6 @@ if __name__ == "__main__":
     im_out = np.zeros_like(im)
     native.threshold_u8(im[11:20, 11:20], im_out[21:30, 11:20], 127)
     print(create_compare_with_ref_str("threshold", im_out[21:30, 11:20], im[11:20, 11:20] > 127))
+
+    print(np.amax(im2))
+    print(native.imMax_f(im2))

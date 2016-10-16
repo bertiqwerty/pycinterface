@@ -54,4 +54,27 @@ DLL_EXPORT void threshold_u8(Imterface<uint8> *im_in, Imterface<uint8> *im_out, 
     }
 }
 
+DLL_EXPORT float32 imMax_f(Imterface<float32> *im_in)
+{
+    float32 maxVal = im_in->data[0];
+    if (typeCheck(*im_in))
+    {
+        for (int y = 0; y < im_in->height; y++)
+        {
+            for (int x = 0; x < im_in->width; x++)
+            {
+                float32 curVal = im_in->data[x * im_in->xStride + y * im_in->yStride];
+                if (maxVal < curVal)
+                {
+                    maxVal = curVal;
+                }
+            }
+        }
+    }
+    else
+    {
+        std::cerr << "Wrong image data type!" << std::endl;
+    }
+    return maxVal;
+}
 

@@ -76,6 +76,7 @@ class _FunctionWrapper:
     def __init__(self, function_name, library):
         self.name = function_name
         self.library = library
+        self.restype = ctypes.c_int
 
     def __call__(self, *args):
         converted_args = list(args)
@@ -104,7 +105,12 @@ class _FunctionWrapper:
             elif isinstance(arg, int):
                 converted_args[i] = ctypes.c_int(arg)
 
-        getattr(self.library, self.name)(*converted_args)
+        # retrieve function with ctypes
+        c_func = getattr(self.library, self.name)
+        c_func.restype = self.restype
+        # call C/C++ function
+        return c_func(*converted_args)
+
 
 
 class NativeLibraryWrapper:
@@ -141,7 +147,7 @@ class NativeLibraryWrapper:
             raise IOError("Did not find library.")
 
         self.library = ctypes.cdll.LoadLibrary(path_to_library)
-        self.functions = {}
+        self.functions = dict()
 
     def __getattr__(self, function):
         if function in self.functions:
