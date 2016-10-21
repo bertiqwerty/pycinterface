@@ -9,12 +9,12 @@
 from collections import OrderedDict
 import re
 import sys
-import numpy as np
+
 
 # currently supported return values have a value different from None
 _interfacing_types = {
-    "Imterface<float32>": "get_c_image_type(np.float32)",
-    "Imterface<uint8>": "get_c_image_type(np.uint8)",
+    "Imterface<float32>": "ctypes.POINTER(get_c_image_type(np.dtype(np.float32)))",
+    "Imterface<uint8>": "ctypes.POINTER(get_c_image_type(np.dtype(np.uint8)))",
     "uint8": "ctypes.c_uint8",
     "int": "ctypes.c_int",
     "float32": "ctypes.c_float",
@@ -22,6 +22,14 @@ _interfacing_types = {
     "double": "ctypes.c_double",
     "float": "ctypes.c_float"
 }
+
+
+def privatize_function(name):
+    private_names = ["clean_memory"]
+    for priv in private_names:
+        if name.startswith(priv):
+            return "_" + name
+    return name
 
 
 def parse_c_interface(c_interface_file):
@@ -43,7 +51,7 @@ def parse_c_interface(c_interface_file):
         # find function name
         wo_params = re.sub(params_regex, "", sig)
         tokens = re.split("\s", wo_params)
-        name = tokens[-1]
+        name = privatize_function(tokens[-1])
         function_dict[name] = dict()
 
         # find return type
@@ -59,6 +67,8 @@ def parse_c_interface(c_interface_file):
         parameters = [ re.search("[A-Za-z0-9_]+",x[-1].strip()).group(0) for x in  [re.split("\s", s) for s in param_string.split(",")]]
         function_dict[name]["params"] = parameters
 
+    print(function_dict)
+
     return function_dict
 
 
@@ -71,8 +81,10 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     functions_str = lib_wrapper + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
     for name in dc_functions:
         functions_str += "def " + name + "(" + ", ".join(dc_functions[name]["params"]) + "):\n"
+        print(dc_functions[name])
         restype_str = _interfacing_types[dc_functions[name]["restype"]]
         if restype_str is not None:
+            print("notNone", name)
             functions_str += "    " + lib_wrapper + "." + name + ".restype = " + restype_str + "\n"
         functions_str += "    return " + lib_wrapper + "." + name \
                          + "(" + ", ".join(dc_functions[name]["params"]) + ")\n\n\n"

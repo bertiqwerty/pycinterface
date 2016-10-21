@@ -72,10 +72,10 @@ def get_c_image_type(np_dtype):
         return CImage
 
 
-class NpCArray(np.array):
-
-    def __del__(self):
-        super(NpCArray, self).__del__()
+# class NpCArray(np.array):
+#
+#     def __del__(self):
+#         super(NpCArray, self).__del__()
 
 
 class _FunctionWrapper:

@@ -27,21 +27,22 @@ if __name__ == "__main__":
     im1 = np.random.randn(10, 10).astype(np.float32)
     im2 = np.random.randn(10, 10).astype(np.float32)
     im_out = np.zeros_like(im1)
-    native.add_f(im1, im2, im_out)
+    im_out = np.frombuffer(native.add_f(im1, im2).contents.data, dtype=np.float32, count=native.add_f(im1, im2).contents.width*native.add_f(im1, im2).contents.height)
+    print(im_out)
     print(create_compare_with_ref_str("addition", im_out, im1 + im2))
 
-    # Typecheck fails
-    im1 = np.random.randn(10, 10).astype(np.uint8)
-    im2 = np.random.randn(10, 10).astype(np.float32)
-    im_out = np.zeros_like(im1)
-    native.add_f(im1, im2, im_out)
-    print(create_compare_with_ref_str("invalid type", im_out, np.zeros_like(im1)))
-
-    # Threshold example with numpy views
-    im = (scale_2_01(np.random.randn(100, 100)) * 255).astype(np.uint8)
-    im_out = np.zeros_like(im)
-    native.threshold_u8(im[11:20, 11:20], im_out[21:30, 11:20], 127)
-    print(create_compare_with_ref_str("threshold", im_out[21:30, 11:20], im[11:20, 11:20] > 127))
-
-    # maximum value of array
-    print(create_compare_with_ref_str("amax", np.amax(im2), native.im_max_f(im2)))
+    # # Typecheck fails
+    # im1 = np.random.randn(10, 10).astype(np.uint8)
+    # im2 = np.random.randn(10, 10).astype(np.float32)
+    # im_out = np.zeros_like(im1)
+    # native.add_f(im1, im2, im_out)
+    # print(create_compare_with_ref_str("invalid type", im_out, np.zeros_like(im1)))
+    #
+    # # Threshold example with numpy views
+    # im = (scale_2_01(np.random.randn(100, 100)) * 255).astype(np.uint8)
+    # im_out = np.zeros_like(im)
+    # native.threshold_u8(im[11:20, 11:20], im_out[21:30, 11:20], 127)
+    # print(create_compare_with_ref_str("threshold", im_out[21:30, 11:20], im[11:20, 11:20] > 127))
+    #
+    # # maximum value of array
+    # print(create_compare_with_ref_str("amax", np.amax(im2), native.im_max_f(im2)))
