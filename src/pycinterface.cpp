@@ -31,16 +31,10 @@ DLL_EXPORT void clean_memory_u8(Imterface<uint8> *im_in)
 //DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2)
 DLL_EXPORT Imterface<float32>* add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2)
 {
-    std::cout << "HALLO" << std::endl;
-    std::cout << im_in1->typeId << std::endl;
-
     // You probably don't want to use the Imterface instance directly but create an image class that checks
     // the type in its constructor, allocates memory without using 'new', and has convenient access operators.
     if (typeCheck(*im_in1) && typeCheck(*im_in2))
     {
-
-        std::cout << "HALLO2" << std::endl;
-
         Imterface<float32> *im_out = new Imterface<float32>;
         *im_out = { nullptr, im_in1->channels, im_in1->width, im_in1->height, im_in1->channels, im_in1->width, im_in1->typeId };
         im_out->data = new float32[im_out->width * im_out->height];

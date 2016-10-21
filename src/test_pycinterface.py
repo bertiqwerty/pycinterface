@@ -7,6 +7,7 @@
 """
 
 import numpy as np
+import ctypes
 import native
 
 
@@ -27,8 +28,7 @@ if __name__ == "__main__":
     im1 = np.random.randn(10, 10).astype(np.float32)
     im2 = np.random.randn(10, 10).astype(np.float32)
     im_out = np.zeros_like(im1)
-    im_out = np.frombuffer(native.add_f(im1, im2).contents.data, dtype=np.float32, count=native.add_f(im1, im2).contents.width*native.add_f(im1, im2).contents.height)
-    print(im_out)
+    im_out = native.add_f(im1, im2)
     print(create_compare_with_ref_str("addition", im_out, im1 + im2))
 
     # # Typecheck fails

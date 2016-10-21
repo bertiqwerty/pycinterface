@@ -67,7 +67,6 @@ def parse_c_interface(c_interface_file):
         parameters = [ re.search("[A-Za-z0-9_]+",x[-1].strip()).group(0) for x in  [re.split("\s", s) for s in param_string.split(",")]]
         function_dict[name]["params"] = parameters
 
-    print(function_dict)
 
     return function_dict
 
@@ -76,18 +75,22 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     """
     @brief Generates native code wrapping strings in Python
     """
-    dc_functions = parse_c_interface(in_file)
+    function_dict = parse_c_interface(in_file)
     lib_wrapper = "_"+lib_name + "_native_lib"
     functions_str = lib_wrapper + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
-    for name in dc_functions:
-        functions_str += "def " + name + "(" + ", ".join(dc_functions[name]["params"]) + "):\n"
-        print(dc_functions[name])
-        restype_str = _interfacing_types[dc_functions[name]["restype"]]
+    for name in function_dict:
+        functions_str += "def " + name + "(" + ", ".join(function_dict[name]["params"]) + "):\n"
+        restype_str = _interfacing_types[function_dict[name]["restype"]]
         if restype_str is not None:
-            print("notNone", name)
             functions_str += "    " + lib_wrapper + "." + name + ".restype = " + restype_str + "\n"
-        functions_str += "    return " + lib_wrapper + "." + name \
-                         + "(" + ", ".join(dc_functions[name]["params"]) + ")\n\n\n"
+
+        functions_str += "    tmp = " + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
+        print(function_dict[name]["restype"], "Imterface" in function_dict[name]["restype"])
+        if "Imterface" in function_dict[name]["restype"]:
+
+            functions_str += "    tmp = np.ctypeslib.as_array(tmp.contents.data, shape=(tmp.contents.height, tmp.contents.width))\n"
+
+        functions_str += "    return tmp" + "\n\n\n"
     return functions_str
 
 

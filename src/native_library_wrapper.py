@@ -72,8 +72,7 @@ def get_c_image_type(np_dtype):
         return CImage
 
 
-# class NpCArray(np.array):
-#
+# class NpCArray(np.ndarray):
 #     def __del__(self):
 #         super(NpCArray, self).__del__()
 
