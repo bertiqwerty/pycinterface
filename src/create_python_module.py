@@ -85,7 +85,8 @@ def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.
     wrappers for the passed project dict and writes the result to the given out_file.
     """
     wrapper_str = "import ctypes\n"
-    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
+    wrapper_str += "import numpy as np\n"
+    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper, get_c_image_type\n\n"
 
     for cpp_file, base_folder, lib_name in zip(cppfiles, base_folders, lib_names):
         wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"
