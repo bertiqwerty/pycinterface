@@ -6,13 +6,15 @@
 @details Parser for the cpp-interface file to create Python wrappers
 """
 
-import nltk
+from collections import OrderedDict
 import re
 import sys
+import numpy as np
 
 # currently supported return values have a value different from None
 _interfacing_types = {
-    "Imterface": None,
+    "Imterface<float32>": "get_c_image_type(np.float32)",
+    "Imterface<uint8>": "get_c_image_type(np.uint8)",
     "uint8": "ctypes.c_uint8",
     "int": "ctypes.c_int",
     "float32": "ctypes.c_float",
@@ -31,32 +33,33 @@ def parse_c_interface(c_interface_file):
     with open(c_interface_file, "r") as f:
         content = f.read()
 
-    content = re.sub("<[_0-9a-zA-Z]+>", "", content)
     content = re.sub("/\*.*?\*/", "", content, flags=re.DOTALL)
     content = "\n".join([c.split("//")[0] for c in content.split("\n")])
 
-    content = content.replace("*", "")
-    content = content.replace("lambda", "lambda_param")
-    try:
-        tokens = nltk.word_tokenize(content)
-    except LookupError:
-        nltk.download('punkt')
-        tokens = nltk.word_tokenize(content)
-    dc_functions = dict()
-    for i, token in enumerate(tokens):
-        if token == "DLL_EXPORT":
-            final_index = i
-            j = 1
-            while True:
-                if tokens[i + j] == ")":
-                    final_index = i + j
-                    break
-                j += 1
-            params = [p for p in tokens[i+5:final_index:3]]
-            restype = tokens[i + 1]
-            function_name = tokens[i + 2]
-            dc_functions[function_name] = {"restype": restype, "params": params}
-    return dc_functions
+    function_signatures = [x for x in re.findall("DLL_EXPORT.+?\)", content, flags=re.DOTALL)]
+    function_dict = OrderedDict()
+    for sig in function_signatures:
+        params_regex = re.compile("\(.*?\)", flags=re.DOTALL)
+        # find function name
+        wo_params = re.sub(params_regex, "", sig)
+        tokens = re.split("\s", wo_params)
+        name = tokens[-1]
+        function_dict[name] = dict()
+
+        # find return type
+        returns_imterface = re.search("Imterface<.*?>", wo_params, flags=re.DOTALL)
+        if returns_imterface is not None:
+            function_dict[name]["restype"] = returns_imterface.group(0)
+        else:
+            function_dict[name]["restype"] = " ".join(tokens[1:-1])
+
+        # find parameters
+        param_string = re.search(params_regex, sig).group(0)[1:-1]
+        param_string = re.sub("<.*?>", "", param_string) # remove template specifiers
+        parameters = [ re.search("[A-Za-z0-9_]+",x[-1].strip()).group(0) for x in  [re.split("\s", s) for s in param_string.split(",")]]
+        function_dict[name]["params"] = parameters
+
+    return function_dict
 
 
 def cpp_file_to_py_file_content(in_file, base_folder, lib_name):

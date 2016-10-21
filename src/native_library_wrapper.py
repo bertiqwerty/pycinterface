@@ -42,7 +42,7 @@ _np_dtype_2_type_id = {
 _np_dtype_2_cimage = dict()
 
 
-def _get_c_image_type(np_dtype):
+def get_c_image_type(np_dtype):
     """
     @brief Creates an image class that can be passed to C++ where an according struct has to be defined
     @param np_dtype data type of the numpy array representing the image in Python
@@ -72,6 +72,12 @@ def _get_c_image_type(np_dtype):
         return CImage
 
 
+class NpCArray(np.array):
+
+    def __del__(self):
+        super(NpCArray, self).__del__()
+
+
 class _FunctionWrapper:
     """
     Wrapper for functions exported by a dynamic library. Some arguments such as ints, floats and numpy arrays are
@@ -86,7 +92,7 @@ class _FunctionWrapper:
         converted_args = list(args)
         for i, arg in enumerate(args):
             if isinstance(arg, np.ndarray):
-                c_image_type = _get_c_image_type(arg.dtype)
+                c_image_type = get_c_image_type(arg.dtype)
                 if len(arg.shape) == 3:
                     c_image = c_image_type(
                         arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
@@ -114,7 +120,6 @@ class _FunctionWrapper:
         c_func.restype = self.restype
         # call C/C++ function
         return c_func(*converted_args)
-
 
 
 class NativeLibraryWrapper:

@@ -9,15 +9,30 @@
 #include "ImageTypes.h"
 #include <iostream>
 
+DLL_EXPORT void clean_memory_f(Imterface<float32> *im_in)
+{
+    delete[] im_in->data;
+}
+DLL_EXPORT void clean_memory_u8(Imterface<uint8> *im_in)
+{
+    delete[] im_in->data;
+}
+
+
 
 // Functions are made available in Python with the DLL_EXPORT macro.
-DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, Imterface<float32> *im_out)
+DLL_EXPORT Imterface<float32>* add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2)
 {
-
+    
     // You probably don't want to use the Imterface instance directly but create an image class that checks
     // the type in its constructor, allocates memory without using 'new', and has convenient access operators.
-    if (typeCheck(*im_in1) && typeCheck(*im_in2) && typeCheck(*im_out))
+    if (typeCheck(*im_in1) && typeCheck(*im_in2))
     {
+        Imterface<float32> *im_out;
+        *im_out = { nullptr, im_in1->channels, im_in1->width, im_in1->height, im_in1->channels, im_in1->width, im_in1->typeId };
+        im_out->data = new float32[im_out->width * im_out->height];
+
+        // You probably want to use templated functions for your algorithms and use this function only as interface.
         for (int y = 0; y < im_in1->height; y++)
         {
             for (int x = 0; x < im_in1->width; x++)
@@ -30,6 +45,7 @@ DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, Im
     else
     {
         std::cerr << "Wrong image data type!" << std::endl;
+        return nullptr;
     }
 }
 
