@@ -9,7 +9,7 @@
 import ctypes
 import numpy as np
 import os
-
+import traceback
 
 def in_debug_mode():
     try:
@@ -20,6 +20,33 @@ def in_debug_mode():
 
     return debugging
 
+
+class NdCustomDeleteArray():
+
+    def __init__(self, arr, owns=False, deleter=lambda x: None):
+        self.ndarray = arr
+        self.owns = owns
+        self.deleter = deleter
+
+
+    def __getitem__(self, key):
+        tmp = NdCustomDeleteArray(self.ndarray.__getitem__(key), self)
+        return tmp
+
+    def __setitem__(self, key, value):
+        self.np_array.__setitem__(key, value)
+
+    def __getattr__(self, item):
+        return getattr(self.ndarray, item)
+
+    def __del__(self):
+        print("try to del %s"%self.owns)
+        print(self.ndarray.base)
+        if self.owns:
+            self.deleter(self.ndarray)
+            print("pyDELETED!")
+        else:
+            print("Not owning, not deleting.")
 
 # All supported numpy dtypes and there ctype counter parts are defined manually in this dict.
 _np_dtype_2_ctype_p = {
@@ -72,11 +99,6 @@ def get_c_image_type(np_dtype):
         return CImage
 
 
-# class NpCArray(np.ndarray):
-#     def __del__(self):
-#         super(NpCArray, self).__del__()
-
-
 class _FunctionWrapper:
     """
     Wrapper for functions exported by a dynamic library. Some arguments such as ints, floats and numpy arrays are
@@ -90,23 +112,25 @@ class _FunctionWrapper:
     def __call__(self, *args):
         converted_args = list(args)
         for i, arg in enumerate(args):
+            if isinstance(arg, NdCustomDeleteArray):
+                arg = arg.ndarray
             if isinstance(arg, np.ndarray):
                 c_image_type = get_c_image_type(arg.dtype)
-                if len(arg.shape) == 3:
-                    c_image = c_image_type(
-                        arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
-                        arg.shape[2], arg.shape[1], arg.shape[0],
-                        arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-                        _np_dtype_2_type_id[np.dtype(arg.dtype)]
-                    )
-                elif len(arg.shape) == 2:
-                    c_image = c_image_type(
-                        arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
-                        1, arg.shape[1], arg.shape[0],
-                        arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-                        _np_dtype_2_type_id[np.dtype(arg.dtype)]
-                    )
-
+                shape = arg.shape
+                if len(shape) == 2:
+                    shape = 1, arg.shape[1], arg.shape[0]
+                elif len(shape) == 3:
+                    shape = arg.shape[2], arg.shape[1], arg.shape[0]
+                #try:
+                #print(_np_dtype_2_ctype_p[np.dtype(arg.dtype)],
+                #    shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
+                #    _np_dtype_2_type_id[np.dtype(arg.dtype)])
+                c_image = c_image_type(
+                    arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
+                    *shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
+                    _np_dtype_2_type_id[np.dtype(arg.dtype)]
+                )
+                #except TypeError:
                 converted_args[i] = ctypes.POINTER(c_image_type)(c_image)
 
             elif isinstance(arg, float):

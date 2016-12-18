@@ -10,19 +10,21 @@
 #include <iostream>
 
 template <typename T>
-void clean_memory(Imterface<T> *im_in)
+void clean_memory(T *data)
 {
-    delete[] im_in->data;
-    delete im_in;
+    std::cout << "DELETED1!" << std::endl;
+    delete[] data;
+    std::cout << "DELETED3!" << std::endl;
+
 }
 
-DLL_EXPORT void clean_memory_f(Imterface<float32> *im_in)
+DLL_EXPORT void clean_memory_float32(float32 *data)
 {
-    clean_memory(im_in);
+    clean_memory(data);
 }
-DLL_EXPORT void clean_memory_u8(Imterface<uint8> *im_in)
+DLL_EXPORT void clean_memory_uint8(uint8* data)
 {
-    clean_memory(im_in);
+    clean_memory(data);
 }
 
 
@@ -35,8 +37,7 @@ DLL_EXPORT Imterface<float32>* add_f(Imterface<float32> *im_in1, Imterface<float
     // the type in its constructor, allocates memory without using 'new', and has convenient access operators.
     if (typeCheck(*im_in1) && typeCheck(*im_in2))
     {
-        Imterface<float32> *im_out = new Imterface<float32>;
-        *im_out = { nullptr, im_in1->channels, im_in1->width, im_in1->height, im_in1->channels, im_in1->width, im_in1->typeId };
+        Imterface<float32> *im_out = new Imterface<float32>{ nullptr, im_in1->channels, im_in1->width, im_in1->height, im_in1->channels, im_in1->channels * im_in1->width, im_in1->typeId };
         im_out->data = new float32[im_out->width * im_out->height];
 
         // You probably want to use templated functions for your algorithms and use this function only as interface.

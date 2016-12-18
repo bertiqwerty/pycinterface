@@ -51,7 +51,7 @@ def parse_c_interface(c_interface_file):
         # find function name
         wo_params = re.sub(params_regex, "", sig)
         tokens = re.split("\s", wo_params)
-        name = privatize_function(tokens[-1])
+        name = tokens[-1]
         function_dict[name] = dict()
 
         # find return type
@@ -64,9 +64,8 @@ def parse_c_interface(c_interface_file):
         # find parameters
         param_string = re.search(params_regex, sig).group(0)[1:-1]
         param_string = re.sub("<.*?>", "", param_string) # remove template specifiers
-        parameters = [ re.search("[A-Za-z0-9_]+",x[-1].strip()).group(0) for x in  [re.split("\s", s) for s in param_string.split(",")]]
+        parameters = [re.search("[A-Za-z0-9_]+", x[-1].strip()).group(0) for x in [re.split("\s", s) for s in param_string.split(",")]]
         function_dict[name]["params"] = parameters
-
 
     return function_dict
 
@@ -79,31 +78,36 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     lib_wrapper = "_"+lib_name + "_native_lib"
     functions_str = lib_wrapper + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
     for name in function_dict:
-        functions_str += "def " + name + "(" + ", ".join(function_dict[name]["params"]) + "):\n"
+        functions_str += "def " + privatize_function(name) + "(" + ", ".join(function_dict[name]["params"]) + "):\n"
         restype_str = _interfacing_types[function_dict[name]["restype"]]
         if restype_str is not None:
             functions_str += "    " + lib_wrapper + "." + name + ".restype = " + restype_str + "\n"
+        tab = " " * 4
+        if function_dict[name]["restype"] == "void":
+            functions_str += tab + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
+        else:
+            functions_str += "    tmp = " + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
+            if "Imterface" in function_dict[name]["restype"]:
+                functions_str += tab + "tmp = np.ctypeslib.as_array(tmp.contents.data, shape=(tmp.contents.height, tmp.contents.width))\n"
+                data_type = re.search("<.+?>", function_dict[name]["restype"]).group(0)[1:-1]
+                functions_str += tab + "tmp = NdCustomDeleteArray(tmp, owns=True)\n"
+                functions_str += tab + "tmp.deleter = _clean_memory_" + data_type + "\n"
 
-        functions_str += "    tmp = " + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
-        print(function_dict[name]["restype"], "Imterface" in function_dict[name]["restype"])
-        if "Imterface" in function_dict[name]["restype"]:
 
-            functions_str += "    tmp = np.ctypeslib.as_array(tmp.contents.data, shape=(tmp.contents.height, tmp.contents.width))\n"
-
-        functions_str += "    return tmp" + "\n\n\n"
+            functions_str += tab + "return tmp" + "\n\n\n"
     return functions_str
 
 
-def generate_python_wrapper(cppfiles, base_folders, lib_names, out_file="native.py"):
+def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native.py"):
     """
-    @brief Based on parsing the interface-c-files of our native code, this function generates corresponding Python
+    Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
     """
     wrapper_str = "import ctypes\n"
     wrapper_str += "import numpy as np\n"
-    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper, get_c_image_type\n\n"
+    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper, get_c_image_type, NdCustomDeleteArray\n\n"
 
-    for cpp_file, base_folder, lib_name in zip(cppfiles, base_folders, lib_names):
+    for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
         wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"
     with open(out_file, "w") as f:
         f.write(wrapper_str)

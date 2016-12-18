@@ -46,6 +46,6 @@ bool typeCheck(const Imterface<T>& im)
     return ImageTypeTrait<T>::value == im.typeId;
 }
 
-
+typedef Imterface<float32> Imterface_f32;
 
 #endif
