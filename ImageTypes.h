@@ -8,8 +8,10 @@
 #ifndef _IMAGE_TYPES_HPP_
 #define _IMAGE_TYPES_HPP_
 
+#define OUT
 
 typedef float float32;
+typedef double float64;
 typedef unsigned char uint8;
 
 /**
@@ -34,16 +36,10 @@ struct ImageTypeTrait
 {
     static int const value = -1;
 };
-template<>
-struct ImageTypeTrait<float32>
-{
-    static int const value = 0;
-};
-template<>
-struct ImageTypeTrait<uint8>
-{
-    static int const value = 1;
-};
+template<> struct ImageTypeTrait<float32> { static int const value = 0; };
+template<> struct ImageTypeTrait<uint8> { static int const value = 1; };
+template<> struct ImageTypeTrait<float64> { static int const value = 2; };
+template<> struct ImageTypeTrait<int> { static int const value = 3; };
 
 template<typename T>
 bool typeCheck(const Imterface<T>& im)
@@ -51,6 +47,6 @@ bool typeCheck(const Imterface<T>& im)
     return ImageTypeTrait<T>::value == im.typeId;
 }
 
-
+typedef Imterface<float32> Imterface_f32;
 
 #endif
