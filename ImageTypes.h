@@ -8,6 +8,7 @@
 #ifndef _IMAGE_TYPES_HPP_
 #define _IMAGE_TYPES_HPP_
 
+#define OUT
 
 typedef float float32;
 typedef double float64;

@@ -13,8 +13,6 @@ import sys
 
 # currently supported return values have a value different from None
 _interfacing_types = {
-    "Imterface<float32>": "ctypes.POINTER(get_c_image_type(np.dtype(np.float32)))",
-    "Imterface<uint8>": "ctypes.POINTER(get_c_image_type(np.dtype(np.uint8)))",
     "uint8": "ctypes.c_uint8",
     "int": "ctypes.c_int",
     "float32": "ctypes.c_float",
@@ -24,25 +22,18 @@ _interfacing_types = {
 }
 
 
-def privatize_function(name):
-    private_names = ["clean_memory"]
-    for priv in private_names:
-        if name.startswith(priv):
-            return "_" + name
-    return name
-
-
 def parse_c_interface(c_interface_file):
     """
     @brief Parses a c-interface file and generates a dictionary of function names to parameter lists.
     Exported functions are expected to be preceded by 'DLL_EXPORT'. Python keywords should not be used as variable
     names for the function names in the cpp-interface file.
     """
-    with open(c_interface_file, "r") as f:
-        content = f.read()
 
-    content = re.sub("/\*.*?\*/", "", content, flags=re.DOTALL)
-    content = "\n".join([c.split("//")[0] for c in content.split("\n")])
+    _OUT_BUFFER_KEYWORD = "OUT"
+
+    with open(c_interface_file, "r") as f:
+        # read file and remove comments
+        content = "\n".join([c.split("//")[0] for c in re.sub("/\*.*?\*/", "",  f.read(), flags=re.DOTALL).split("\n")])
 
     function_signatures = [x for x in re.findall("DLL_EXPORT.+?\)", content, flags=re.DOTALL)]
     function_dict = OrderedDict()
@@ -54,18 +45,24 @@ def parse_c_interface(c_interface_file):
         name = tokens[-1]
         function_dict[name] = dict()
 
-        # find return type
-        returns_imterface = re.search("Imterface<.*?>", wo_params, flags=re.DOTALL)
-        if returns_imterface is not None:
-            function_dict[name]["restype"] = returns_imterface.group(0)
-        else:
-            function_dict[name]["restype"] = " ".join(tokens[1:-1])
+        # find return type and initialize dict
+        function_dict[name] = {"restype": " ".join(tokens[1:-1]), "params": [], "out_buffers": []}
 
-        # find parameters
-        param_string = re.search(params_regex, sig).group(0)[1:-1]
-        param_string = re.sub("<.*?>", "", param_string) # remove template specifiers
-        parameters = [re.search("[A-Za-z0-9_]+", x[-1].strip()).group(0) for x in [re.split("\s", s) for s in param_string.split(",")]]
-        function_dict[name]["params"] = parameters
+        # find parameters, remove template specifiers, and split at commas
+        param_fields = re.sub("<.*?>", "", re.search(params_regex, sig).group(0)[1:-1]).split(",")
+
+        out_buffer_indices = [i for i, s in enumerate(param_fields)
+                              if _OUT_BUFFER_KEYWORD in [x.strip() for x in s.split(" ")]]
+
+        name_position = -1  # last position in C++ should contain the name of the variable
+        all_parameters = [re.search("[A-Za-z0-9_]+", x[name_position].strip()).group(0)
+                          for x in (re.split("\s", s) for s in param_fields)]
+
+        for i, p in enumerate(all_parameters):
+            if i in out_buffer_indices:
+                function_dict[name]["out_buffers"].append(p)
+            else:
+                function_dict[name]["params"].append(p)
 
     return function_dict
 
@@ -74,28 +71,31 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     """
     @brief Generates native code wrapping strings in Python
     """
-    function_dict = parse_c_interface(in_file)
-    lib_wrapper = "_"+lib_name + "_native_lib"
-    functions_str = lib_wrapper + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
-    for name in function_dict:
-        functions_str += "def " + privatize_function(name) + "(" + ", ".join(function_dict[name]["params"]) + "):\n"
-        restype_str = _interfacing_types[function_dict[name]["restype"]]
-        if restype_str is not None:
-            functions_str += "    " + lib_wrapper + "." + name + ".restype = " + restype_str + "\n"
-        tab = " " * 4
-        if function_dict[name]["restype"] == "void":
-            functions_str += tab + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
-        else:
-            functions_str += "    tmp = " + lib_wrapper + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
-            if "Imterface" in function_dict[name]["restype"]:
-                functions_str += tab + "tmp = np.ctypeslib.as_array(tmp.contents.data, shape=(tmp.contents.height, tmp.contents.width))\n"
-                data_type = re.search("<.+?>", function_dict[name]["restype"]).group(0)[1:-1]
-                functions_str += tab + "tmp = NdCustomDeleteArray(tmp, owns=True)\n"
-                functions_str += tab + "tmp.deleter = _clean_memory_" + data_type + "\n"
+    py_lib_var_name = "_"+ lib_name + "_native_lib"
 
+    lib_wrapper = py_lib_var_name + " = NativeLibraryWrapper('" + base_folder+ "', '" + lib_name + "')\n\n\n"
 
-            functions_str += tab + "return tmp" + "\n\n\n"
-    return functions_str
+    def func_str_gen(function_dict):
+        for name in function_dict:
+            func_str = "def " + name + "(" + ", ".join(function_dict[name]["params"] + [s + "=None" for s in function_dict[name]["out_buffers"]]) + "):\n"
+            tab = " " * 4
+
+            for buffer in function_dict[name]["out_buffers"]:
+                func_str += tab + "if " + buffer + " is None:\n"
+                func_str += tab * 2 + buffer + " = np.zeros_like(" + function_dict[name]["params"][0] + ")\n"
+
+            if function_dict[name]["restype"] == "void":
+                func_str += tab + py_lib_var_name + "." + name + "(" \
+                                 + ", ".join(function_dict[name]["params"] + function_dict[name]["out_buffers"]) + ")\n"
+            else:
+                restype_str = _interfacing_types[function_dict[name]["restype"]]
+                func_str += tab + py_lib_var_name + "." + name + ".restype = " + restype_str + "\n"
+                func_str += tab + "return " + py_lib_var_name + "." + name + "(" + ", ".join(function_dict[name]["params"]) + ")\n"
+
+            if len(function_dict[name]["out_buffers"]) > 0:
+                func_str += tab + "return " + ", ".join(function_dict[name]["out_buffers"]) + "\n"
+            yield func_str
+    return lib_wrapper + "\n\n".join(func_str_gen(parse_c_interface(in_file)))
 
 
 def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native.py"):
@@ -103,9 +103,9 @@ def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native
     Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
     """
-    wrapper_str = "import ctypes\n"
+    wrapper_str = '# coding: utf-8\n"""\nThis file is auto-generated.\n"""\nimport ctypes\n'
     wrapper_str += "import numpy as np\n"
-    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper, get_c_image_type, NdCustomDeleteArray\n\n"
+    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
 
     for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
         wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"

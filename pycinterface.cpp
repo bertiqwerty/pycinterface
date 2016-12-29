@@ -9,38 +9,18 @@
 #include "ImageTypes.h"
 #include <iostream>
 
-template <typename T>
-void clean_memory(T *data)
-{
-    std::cout << "DELETED1!" << std::endl;
-    delete[] data;
-    std::cout << "DELETED3!" << std::endl;
-
-}
-
-DLL_EXPORT void clean_memory_float32(float32 *data)
-{
-    clean_memory(data);
-}
-DLL_EXPORT void clean_memory_uint8(uint8* data)
-{
-    clean_memory(data);
-}
-
-
-
-// Functions are made available in Python with the DLL_EXPORT macro.
-//DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2)
-DLL_EXPORT Imterface<float32>* add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2)
+// Functions are made available in Python with the DLL_EXPORT macro. The OUT macro is empty. It just makes the
+// Python code generator return the output buffer instead of taking it as input argument.
+DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, OUT Imterface<float32> *im_out)
 {
     // You probably don't want to use the Imterface instance directly but create an image class that checks
-    // the type in its constructor, allocates memory without using 'new', and has convenient access operators.
-    if (typeCheck(*im_in1) && typeCheck(*im_in2))
+    // the type in its constructor and has convenient access operators/iterators.
+    if (typeCheck(*im_in1) && typeCheck(*im_in2)&& typeCheck(*im_out))
     {
-        Imterface<float32> *im_out = new Imterface<float32>{ nullptr, im_in1->channels, im_in1->width, im_in1->height, im_in1->channels, im_in1->channels * im_in1->width, im_in1->typeId };
-        im_out->data = new float32[im_out->width * im_out->height];
-
-        // You probably want to use templated functions for your algorithms and use this function only as interface.
+        // Hints:
+        // 1.) You probably want to use templated functions for your algorithms and use this function only as interface.
+        // 2.) Using std::transform won't work out of the box if you pass a numpy view, because than you have
+        //  non-trivial strides. Of course, you could create a custom iterator
         for (int y = 0; y < im_in1->height; y++)
         {
             for (int x = 0; x < im_in1->width; x++)
@@ -49,19 +29,16 @@ DLL_EXPORT Imterface<float32>* add_f(Imterface<float32> *im_in1, Imterface<float
                         im_in1->data[x * im_in1->xStride + y * im_in1->yStride] + im_in2->data[x * im_in2->xStride + y * im_in2->yStride];
             }
         }
-        return im_out;
     }
     else
     {
         std::cerr << "Wrong image data type!" << std::endl;
-        return nullptr;
     }
 }
 
 
 DLL_EXPORT void threshold_u8(Imterface<uint8> *im_in, Imterface<uint8> *im_out, uint8 threshold)
 {
-
     if (typeCheck(*im_in) && typeCheck(*im_out))
     {
         for (int y = 0; y < im_in->height; y++)
