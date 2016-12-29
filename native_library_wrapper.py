@@ -9,7 +9,7 @@
 import ctypes
 import numpy as np
 import os
-
+import traceback
 
 def in_debug_mode():
     try:
@@ -25,6 +25,8 @@ def in_debug_mode():
 _np_dtype_2_ctype_p = {
     np.dtype(np.float32): ctypes.POINTER(ctypes.c_float),
     np.dtype(np.uint8): ctypes.POINTER(ctypes.c_uint8),
+    np.dtype(np.float64): ctypes.POINTER(ctypes.c_double),
+    np.dtype(np.int): ctypes.POINTER(ctypes.c_int),
 }
 
 
@@ -32,13 +34,15 @@ _np_dtype_2_ctype_p = {
 _np_dtype_2_type_id = {
     np.dtype(np.float32): 0,
     np.dtype(np.uint8): 1,
+    np.dtype(np.float64): 2,
+    np.dtype(np.int): 3,
 }
 
 # To not recreate already created types, they are stored in this dict and only created if not already existing.
 _np_dtype_2_cimage = dict()
 
 
-def _get_c_image_type(np_dtype):
+def get_c_image_type(np_dtype):
     """
     @brief Creates an image class that can be passed to C++ where an according struct has to be defined
     @param np_dtype data type of the numpy array representing the image in Python
@@ -76,35 +80,45 @@ class _FunctionWrapper:
     def __init__(self, function_name, library):
         self.name = function_name
         self.library = library
+        self.restype = ctypes.c_int
 
     def __call__(self, *args):
         converted_args = list(args)
         for i, arg in enumerate(args):
-            if isinstance(arg, np.ndarray):
-                c_image_type = _get_c_image_type(arg.dtype)
-                if len(arg.shape) == 3:
-                    c_image = c_image_type(
-                        arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
-                        arg.shape[2], arg.shape[1], arg.shape[0],
-                        arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-                        _np_dtype_2_type_id[np.dtype(arg.dtype)]
-                    )
-                elif len(arg.shape) == 2:
-                    c_image = c_image_type(
-                        arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
-                        1, arg.shape[1], arg.shape[0],
-                        arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-                        _np_dtype_2_type_id[np.dtype(arg.dtype)]
-                    )
 
-                converted_args[i] = ctypes.POINTER(c_image_type)(c_image)
+            if isinstance(arg, np.ndarray):
+                converted_args[i] = _FunctionWrapper._convert_nd_arrary(arg)
 
             elif isinstance(arg, float):
                 converted_args[i] = ctypes.c_float(arg)
             elif isinstance(arg, int):
                 converted_args[i] = ctypes.c_int(arg)
 
-        getattr(self.library, self.name)(*converted_args)
+        # retrieve function with ctypes
+        c_func = getattr(self.library, self.name)
+        c_func.restype = self.restype
+        # call C/C++ function
+        return c_func(*converted_args)
+
+    @staticmethod
+    def _convert_nd_arrary(arg):
+        c_image_type = get_c_image_type(arg.dtype)
+        shape = arg.shape
+        if len(shape) == 2:
+            shape = 1, arg.shape[1], arg.shape[0]
+        elif len(shape) == 3:
+            shape = arg.shape[2], arg.shape[1], arg.shape[0]
+        # try:
+        # print(_np_dtype_2_ctype_p[np.dtype(arg.dtype)],
+        #    shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
+        #    _np_dtype_2_type_id[np.dtype(arg.dtype)])
+        c_image = c_image_type(
+            arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
+            *shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
+            _np_dtype_2_type_id[np.dtype(arg.dtype)]
+        )
+        # except TypeError:
+        return ctypes.POINTER(c_image_type)(c_image)
 
 
 class NativeLibraryWrapper:
@@ -141,7 +155,7 @@ class NativeLibraryWrapper:
             raise IOError("Did not find library.")
 
         self.library = ctypes.cdll.LoadLibrary(path_to_library)
-        self.functions = {}
+        self.functions = dict()
 
     def __getattr__(self, function):
         if function in self.functions:
