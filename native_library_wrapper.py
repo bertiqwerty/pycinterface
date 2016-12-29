@@ -108,16 +108,11 @@ class _FunctionWrapper:
             shape = 1, arg.shape[1], arg.shape[0]
         elif len(shape) == 3:
             shape = arg.shape[2], arg.shape[1], arg.shape[0]
-        # try:
-        # print(_np_dtype_2_ctype_p[np.dtype(arg.dtype)],
-        #    shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-        #    _np_dtype_2_type_id[np.dtype(arg.dtype)])
         c_image = c_image_type(
             arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
             *shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
             _np_dtype_2_type_id[np.dtype(arg.dtype)]
         )
-        # except TypeError:
         return ctypes.POINTER(c_image_type)(c_image)
 
 
