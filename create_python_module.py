@@ -26,7 +26,9 @@ def parse_c_interface(c_interface_file):
     """
     @brief Parses a c-interface file and generates a dictionary of function names to parameter lists.
     Exported functions are expected to be preceded by 'DLL_EXPORT'. Python keywords should not be used as variable
-    names for the function names in the cpp-interface file.
+    names for the function names in the cpp-interface file. If a Python wrapper function shall return the output buffer,
+    the corresponding parameter has to be preceded by the _OUT_BUFFER_KEYWORD in the C++ file. In this case, we assume
+    the parameter is a numpy array. The shape and the dtype will be taken from the first input parameter.
     """
 
     _OUT_BUFFER_KEYWORD = "OUT"
