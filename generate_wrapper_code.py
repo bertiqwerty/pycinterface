@@ -69,9 +69,9 @@ def parse_c_interface(c_interface_file):
     return function_dict
 
 
-def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
+def generate_wrapper(in_file, base_folder, lib_name):
     """
-    @brief Generates native code wrapping strings in Python
+    @brief Generates a string of native code wrappers in Python for a given C/C++-file
     """
     py_lib_var_name = "_"+ lib_name + "_native_lib"
 
@@ -100,7 +100,7 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     return lib_wrapper + "\n\n".join(func_str_gen(parse_c_interface(in_file)))
 
 
-def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native.py"):
+def generate_all_wrappers(cpp_files, base_folders, lib_names, out_file="native.py"):
     """
     Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
@@ -110,11 +110,11 @@ def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native
     wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
 
     for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
-        wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"
+        wrapper_str += generate_wrapper(cpp_file, base_folder, lib_name) + "\n"
     with open(out_file, "w") as f:
         f.write(wrapper_str)
 
 
 if __name__ == "__main__":
     # 1: c-file to be parsed, 2: base folder to look for library, 3: library name
-    generate_python_wrapper([sys.argv[1]], [sys.argv[2]],  [sys.argv[3]])
+    generate_all_wrappers([sys.argv[1]], [sys.argv[2]], [sys.argv[3]])

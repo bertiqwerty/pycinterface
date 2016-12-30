@@ -44,7 +44,6 @@ if __name__ == "__main__":
         im2 = np.random.randn(500, 500).astype(np.float32)
         im_out = im1 + im2
         im_out = native.add_f(im1, im2)
-    print(im_out.shape)
     print(create_compare_with_ref_str("addition", im_out, im1 + im2))
     print("done")
 
