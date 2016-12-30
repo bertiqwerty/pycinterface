@@ -100,14 +100,15 @@ def generate_wrapper(in_file, base_folder, lib_name):
     return lib_wrapper + "\n\n".join(func_str_gen(parse_c_interface(in_file)))
 
 
-def generate_all_wrappers(cpp_files, base_folders, lib_names, out_file="native.py"):
+def generate_all_wrappers(cpp_files, base_folders, lib_names, out_file="native.py", native_wrapper_package=""):
     """
     Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
     """
     wrapper_str = '# coding: utf-8\n"""\nThis file is auto-generated.\n"""\nimport ctypes\n'
     wrapper_str += "import numpy as np\n"
-    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
+    wrapper_str += "from %snative_library_wrapper import NativeLibraryWrapper\n\n" % \
+                   (native_wrapper_package + "." if len(native_wrapper_package) > 0 else "")
 
     for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
         wrapper_str += generate_wrapper(cpp_file, base_folder, lib_name) + "\n"
