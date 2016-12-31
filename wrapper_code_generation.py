@@ -9,6 +9,7 @@
 from collections import OrderedDict
 import re
 import sys
+import os
 
 
 # currently supported return values have a value different from None
@@ -32,7 +33,6 @@ def parse_c_interface(c_interface_file):
     """
 
     _OUT_BUFFER_KEYWORD = "OUT"
-
     with open(c_interface_file, "r") as f:
         # read file and remove comments
         content = "\n".join([c.split("//")[0] for c in re.sub("/\*.*?\*/", "",  f.read(), flags=re.DOTALL).split("\n")])
@@ -57,15 +57,16 @@ def parse_c_interface(c_interface_file):
                               if _OUT_BUFFER_KEYWORD in [x.strip() for x in s.split(" ")]]
 
         name_position = -1  # last position in C++ should contain the name of the variable
-        all_parameters = [re.search("[A-Za-z0-9_]+", x[name_position].strip()).group(0)
-                          for x in (re.split("\s", s) for s in param_fields)]
-
-        for i, p in enumerate(all_parameters):
-            if i in out_buffer_indices:
-                function_dict[name]["out_buffers"].append(p)
-            else:
-                function_dict[name]["params"].append(p)
-
+        try:
+            all_parameters = [re.search("[A-Za-z0-9_]+", x[name_position].strip()).group(0)
+                              for x in (re.split("\s", s) for s in param_fields)]
+            for i, p in enumerate(all_parameters):
+                if i in out_buffer_indices:
+                    function_dict[name]["out_buffers"].append(p)
+                else:
+                    function_dict[name]["params"].append(p)
+        except AttributeError:
+            pass
     return function_dict
 
 
@@ -111,7 +112,12 @@ def generate_all_wrappers(cpp_files, base_folders, lib_names, out_file="native.p
                    (native_wrapper_package + "." if len(native_wrapper_package) > 0 else "")
 
     for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
-        wrapper_str += generate_wrapper(cpp_file, base_folder, lib_name) + "\n"
+        print("## Generate Python wrapper in %s for %s" % (base_folder, lib_name))
+        try:
+            wrapper_str += generate_wrapper(cpp_file, base_folder, lib_name) + "\n"
+        except FileNotFoundError as fnfe:
+            print(fnfe)
+
     with open(out_file, "w") as f:
         f.write(wrapper_str)
 
