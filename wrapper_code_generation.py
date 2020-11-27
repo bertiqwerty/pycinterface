@@ -9,6 +9,7 @@
 from collections import OrderedDict
 import re
 import sys
+import os
 
 
 # currently supported return values have a value different from None
@@ -32,7 +33,6 @@ def parse_c_interface(c_interface_file):
     """
 
     _OUT_BUFFER_KEYWORD = "OUT"
-
     with open(c_interface_file, "r") as f:
         # read file and remove comments
         content = "\n".join([c.split("//")[0] for c in re.sub("/\*.*?\*/", "",  f.read(), flags=re.DOTALL).split("\n")])
@@ -57,21 +57,22 @@ def parse_c_interface(c_interface_file):
                               if _OUT_BUFFER_KEYWORD in [x.strip() for x in s.split(" ")]]
 
         name_position = -1  # last position in C++ should contain the name of the variable
-        all_parameters = [re.search("[A-Za-z0-9_]+", x[name_position].strip()).group(0)
-                          for x in (re.split("\s", s) for s in param_fields)]
-
-        for i, p in enumerate(all_parameters):
-            if i in out_buffer_indices:
-                function_dict[name]["out_buffers"].append(p)
-            else:
-                function_dict[name]["params"].append(p)
-
+        try:
+            all_parameters = [re.search("[A-Za-z0-9_]+", x[name_position].strip()).group(0)
+                              for x in (re.split("\s", s) for s in param_fields)]
+            for i, p in enumerate(all_parameters):
+                if i in out_buffer_indices:
+                    function_dict[name]["out_buffers"].append(p)
+                else:
+                    function_dict[name]["params"].append(p)
+        except AttributeError:
+            pass
     return function_dict
 
 
-def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
+def generate_wrapper(in_file, base_folder, lib_name):
     """
-    @brief Generates native code wrapping strings in Python
+    @brief Generates a string of native code wrappers in Python for a given C/C++-file
     """
     py_lib_var_name = "_"+ lib_name + "_native_lib"
 
@@ -100,21 +101,27 @@ def cpp_file_to_py_file_content(in_file, base_folder, lib_name):
     return lib_wrapper + "\n\n".join(func_str_gen(parse_c_interface(in_file)))
 
 
-def generate_python_wrapper(cpp_files, base_folders, lib_names, out_file="native.py"):
+def generate_all_wrappers(cpp_files, base_folders, lib_names, out_file="native.py", native_wrapper_package=""):
     """
     Based on parsing the interface-c-files of our native code, this function generates corresponding Python
     wrappers for the passed project dict and writes the result to the given out_file.
     """
     wrapper_str = '# coding: utf-8\n"""\nThis file is auto-generated.\n"""\nimport ctypes\n'
     wrapper_str += "import numpy as np\n"
-    wrapper_str += "from native_library_wrapper import NativeLibraryWrapper\n\n"
+    wrapper_str += "from %snative_library_wrapper import NativeLibraryWrapper\n\n" % \
+                   (native_wrapper_package + "." if len(native_wrapper_package) > 0 else "")
 
     for cpp_file, base_folder, lib_name in zip(cpp_files, base_folders, lib_names):
-        wrapper_str += cpp_file_to_py_file_content(cpp_file, base_folder, lib_name) + "\n"
+        print("## Generate Python wrapper in %s for %s" % (base_folder, lib_name))
+        try:
+            wrapper_str += generate_wrapper(cpp_file, base_folder, lib_name) + "\n"
+        except FileNotFoundError as fnfe:
+            print(fnfe)
+
     with open(out_file, "w") as f:
         f.write(wrapper_str)
 
 
 if __name__ == "__main__":
     # 1: c-file to be parsed, 2: base folder to look for library, 3: library name
-    generate_python_wrapper([sys.argv[1]], [sys.argv[2]],  [sys.argv[3]])
+    generate_all_wrappers([sys.argv[1]], [sys.argv[2]], [sys.argv[3]])

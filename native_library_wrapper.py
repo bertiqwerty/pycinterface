@@ -11,6 +11,7 @@ import numpy as np
 import os
 import traceback
 
+
 def in_debug_mode():
     try:
         import pydevd
@@ -21,6 +22,28 @@ def in_debug_mode():
     return debugging
 
 
+def _convert_nd_arrary(arg):
+    c_image_type = get_c_image_type(arg.dtype)
+    shape = arg.shape
+    if len(shape) == 2:
+        shape = 1, arg.shape[1], arg.shape[0]
+    elif len(shape) == 3:
+        shape = arg.shape[2], arg.shape[1], arg.shape[0]
+    c_image = c_image_type(
+        arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
+        *shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
+        _np_dtype_2_type_id[np.dtype(arg.dtype)]
+    )
+    return ctypes.POINTER(c_image_type)(c_image)
+
+# these conversion functions will be applied before passing the arguments to the C function
+_conversions = {
+    float: ctypes.c_float,
+    int: ctypes.c_int,
+    np.ndarray: _convert_nd_arrary,
+    str: ctypes.c_wchar_p
+}
+
 # All supported numpy dtypes and there ctype counter parts are defined manually in this dict.
 _np_dtype_2_ctype_p = {
     np.dtype(np.float32): ctypes.POINTER(ctypes.c_float),
@@ -29,8 +52,7 @@ _np_dtype_2_ctype_p = {
     np.dtype(np.int): ctypes.POINTER(ctypes.c_int),
 }
 
-
-# These type ids are used to check whether the correct function has been called in the cpp-lib
+# These type ids are used to check whether the numpy array has the expected type in C/C++
 _np_dtype_2_type_id = {
     np.dtype(np.float32): 0,
     np.dtype(np.uint8): 1,
@@ -83,42 +105,12 @@ class _FunctionWrapper:
         self.restype = ctypes.c_int
 
     def __call__(self, *args):
-        converted_args = list(args)
-        for i, arg in enumerate(args):
 
-            if isinstance(arg, np.ndarray):
-                converted_args[i] = _FunctionWrapper._convert_nd_arrary(arg)
-
-            elif isinstance(arg, float):
-                converted_args[i] = ctypes.c_float(arg)
-            elif isinstance(arg, int):
-                converted_args[i] = ctypes.c_int(arg)
-
-        # retrieve function with ctypes
+        # retrieve function with ctypes and set return type
         c_func = getattr(self.library, self.name)
         c_func.restype = self.restype
-        # call C/C++ function
-        return c_func(*converted_args)
-
-    @staticmethod
-    def _convert_nd_arrary(arg):
-        c_image_type = get_c_image_type(arg.dtype)
-        shape = arg.shape
-        if len(shape) == 2:
-            shape = 1, arg.shape[1], arg.shape[0]
-        elif len(shape) == 3:
-            shape = arg.shape[2], arg.shape[1], arg.shape[0]
-        # try:
-        # print(_np_dtype_2_ctype_p[np.dtype(arg.dtype)],
-        #    shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-        #    _np_dtype_2_type_id[np.dtype(arg.dtype)])
-        c_image = c_image_type(
-            arg.ctypes.data_as(_np_dtype_2_ctype_p[np.dtype(arg.dtype)]),
-            *shape, arg.strides[1] // arg.itemsize, arg.strides[0] // arg.itemsize,
-            _np_dtype_2_type_id[np.dtype(arg.dtype)]
-        )
-        # except TypeError:
-        return ctypes.POINTER(c_image_type)(c_image)
+        # call C/C++ function with converted arguments
+        return c_func(*[_conversions[next(k for k in _conversions if isinstance(arg, k))](arg) for arg in args])
 
 
 class NativeLibraryWrapper:

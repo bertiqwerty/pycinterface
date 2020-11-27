@@ -11,6 +11,7 @@ import ctypes
 import native
 import sys
 
+
 def scale_2_01(im_in):
     tmp = np.amin(im_in)
     im_scaled = im_in - tmp
@@ -37,14 +38,12 @@ if __name__ == "__main__":
     # maximum value of array
     print(create_compare_with_ref_str("amax", np.amax(im), native.im_max_f(im.astype(np.float32))))
 
-
     # Addition example
     for i in range(1):
         im1 = np.random.randn(500, 500).astype(np.float32)
         im2 = np.random.randn(500, 500).astype(np.float32)
         im_out = im1 + im2
         im_out = native.add_f(im1, im2)
-    print(im_out.shape)
     print(create_compare_with_ref_str("addition", im_out, im1 + im2))
     print("done")
 
