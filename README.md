@@ -44,7 +44,7 @@ _interfacing_types = {
 }
 ```
 
-in [```create_python_module.py```](create_python_module.py) if not yet available. For ```numpy``` arrays that require data allocation, we do not support allocation in C/C++ and returning the pointer. However, you can let the Python function wrapper return the output buffer. Therefore, you have to add the macro ```OUT``` in front of the parameter in the c-function's signature such as
+in [```wrapper_code_generation.py```](wrapper_code_generation.py) if not yet available. For ```numpy``` arrays that require data allocation, we do not support allocation in C/C++ and returning the pointer. However, you can let the Python function wrapper return the output buffer. Therefore, you have to add the macro ```OUT``` in front of the parameter in the c-function's signature such as
 ```
 DLL_EXPORT void add_f(Imterface<float32> *im_in1, Imterface<float32> *im_in2, OUT Imterface<float32> *im_out)
 {
