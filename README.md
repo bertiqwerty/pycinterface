@@ -1,5 +1,5 @@
 # Pycinterface
-Pycinterface is a lightweight interface between Python and C/C++ with a focus on images as numpy arrays based on ctypes (https://docs.python.org/3/library/ctypes.html).
+Pycinterface is a lightweight interface between Python and C/C++ with a focus on images as 2d-numpy-arrays based on ctypes (https://docs.python.org/3/library/ctypes.html).
 
 ## Introduction
 
